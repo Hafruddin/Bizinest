@@ -1,48 +1,33 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api, { setTokenResolver } from '../services/api';
-import { useAuth } from '@clerk/clerk-react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 const AppContext = createContext();
 
-const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true';
-
 export const AppProvider = ({ children }) => {
-  let clerkAuth = {};
-  if (!BYPASS_AUTH) {
-    try {
-      clerkAuth = useAuth();
-    } catch (e) {
-      console.warn('Clerk useAuth failed, falling back to bypass mode context:', e);
-    }
-  }
-
-  const isSignedIn = BYPASS_AUTH ? true : (clerkAuth.isSignedIn || false);
-
   const getToken = async () => {
-    if (!BYPASS_AUTH && clerkAuth.getToken) {
-      try {
-        const token = await clerkAuth.getToken();
-        if (token) return token;
-      } catch (err) {
-        console.warn('Error fetching Clerk token:', err);
-      }
-    }
     return 'mock_clerk_user_123';
   };
 
   // Set the token resolver for Axios interceptors
   useEffect(() => {
     setTokenResolver(getToken);
-  }, [clerkAuth.getToken]);
-
+  }, []);
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'dark';
   });
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState({
+    firstName: 'Rajesh',
+    lastName: 'Kumar',
+    role: 'Business Owner',
+    businessId: {
+      name: 'Apex Dynamics Enterprises'
+    }
+  });
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
+
   const [toasts, setToasts] = useState([]);
 
   // Sync/Load Theme on boot

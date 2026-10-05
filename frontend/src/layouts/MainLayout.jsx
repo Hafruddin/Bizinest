@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { UserButton } from '@clerk/clerk-react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -83,13 +82,9 @@ const MainLayout = ({ children }) => {
         {/* Sync Status / Business Details */}
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-3">
-            {import.meta.env.VITE_BYPASS_AUTH === 'true' ? (
-              <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-xs text-white">
-                EP
-              </div>
-            ) : (
-              <UserButton afterSignOutUrl="/" />
-            )}
+            <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-xs text-white">
+              EP
+            </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
                 {userProfile?.businessId?.name || 'Apex Dynamics Enterprises'}
@@ -153,19 +148,15 @@ const MainLayout = ({ children }) => {
 
               <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                 <div className="flex items-center gap-3">
-                  {import.meta.env.VITE_BYPASS_AUTH === 'true' ? (
-                    <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-xs text-white">
-                      EP
-                    </div>
-                  ) : (
-                    <UserButton afterSignOutUrl="/" />
-                  )}
+                  <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-xs text-white">
+                    EP
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
-                      {userProfile?.businessId?.name || 'Loading Enterprise...'}
+                      {userProfile?.businessId?.name || 'Apex Dynamics Enterprises'}
                     </p>
                     <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-                      {userProfile?.role || 'Guest'}
+                      {userProfile?.role || 'Business Owner'}
                     </p>
                   </div>
                 </div>
