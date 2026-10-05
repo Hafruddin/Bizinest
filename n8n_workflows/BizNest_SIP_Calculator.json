@@ -1,0 +1,63 @@
+{
+  "name": "BizNest_SIP_Calculator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-sip-calculator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json.body || $input.first().json;\n\nconst monthly = Number(req.monthlyInvestment || 5000);\nconst annualReturn = Number(req.annualReturn || 12);\nconst years = Number(req.years || 10);\nconst stepUpPct = Number(req.stepUpPercentage || 0) / 100;\n\nconst r = annualReturn / 100 / 12;\nconst months = years * 12;\n\nlet totalInvested = 0;\nlet estimatedValue = 0;\nlet currentMonthly = monthly;\n\nfor (let m = 1; m <= months; m++) {\n  if (m > 1 && (m - 1) % 12 === 0 && stepUpPct > 0) {\n    currentMonthly = currentMonthly * (1 + stepUpPct);\n  }\n  totalInvested += currentMonthly;\n  estimatedValue = (estimatedValue + currentMonthly) * (1 + r);\n}\n\ntotalInvested = Math.round(totalInvested);\nestimatedValue = Math.round(estimatedValue);\nconst estimatedGain = estimatedValue - totalInvested;\n\nreturn {\n  json: {\n    success: true,\n    intent: 'WEALTH',\n    subIntent: 'SIP_CALCULATOR',\n    label: 'Illustrative scenario — not guaranteed.',\n    data: {\n      monthlyInvestment: monthly,\n      annualReturn,\n      years,\n      stepUpPercentage: req.stepUpPercentage || 0,\n      totalInvested,\n      estimatedGain,\n      estimatedValue\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Deterministic SIP Code Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Deterministic SIP Code Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deterministic SIP Code Node": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

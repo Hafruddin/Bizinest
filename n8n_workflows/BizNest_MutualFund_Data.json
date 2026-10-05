@@ -1,0 +1,64 @@
+{
+  "name": "BizNest_MutualFund_Data",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-mutualfund-data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json.body || $input.first().json;\n\nconst mockCatalog = [\n  {\n    id: 'mf_sbi_small_cap',\
+    schemeName: 'SBI Small Cap Fund - Direct Plan - Growth',\n    amc: 'SBI Mutual Fund',\n    category: 'Small Cap',\n    nav: 168.90,\n    oneYearReturn: 28.4,\n    threeYearReturn: 24.6,\n    fiveYearReturn: 21.8,\n    expenseRatio: 0.69,\n    riskLevel: 'Aggressive',\n    minSip: 500,\n    dataSource: 'MockMutualFundProvider',\n    dataDate: new Date().toISOString().split('T')[0]\n  },\n  {\n    id: 'mf_ppfas_flexi',\n    schemeName: 'Parag Parikh Flexi Cap Fund - Direct Plan - Growth',\n    amc: 'PPFAS Mutual Fund',\n    category: 'Flexi Cap',\n    nav: 82.30,\n    oneYearReturn: 21.8,\n    threeYearReturn: 21.4,\n    fiveYearReturn: 18.9,\n    expenseRatio: 0.62,\n    riskLevel: 'Moderate',\n    minSip: 1000,\n    dataSource: 'MockMutualFundProvider',\n    dataDate: new Date().toISOString().split('T')[0]\n  }\n];\n\nlet result = mockCatalog;\nif (req.category) {\n  result = result.filter(f => f.category === req.category);\n}\n\nreturn {\n  json: {\n    success: true,\n    dataSource: 'MockMutualFundProvider',\n    dataDate: new Date().toISOString().split('T')[0],\n    total: result.length,\n    data: result\n  }\n};"
+      },
+      "name": "Mutual Fund Provider Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 300]
+    }
+  ],
+  "connections": {
+    "Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mutual Fund Provider Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mutual Fund Provider Code": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

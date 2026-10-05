@@ -1,0 +1,63 @@
+{
+  "name": "BizNest_MutualFund_Recommendation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-mutualfund-recommendation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json.body || $input.first().json;\n\nconst recommendations = [\n  {\n    fundName: 'Parag Parikh Flexi Cap Fund - Direct Plan - Growth',\n    amc: 'PPFAS Mutual Fund',\n    category: 'Flexi Cap',\n    risk: 'Moderate',\n    nav: 82.30,\n    navDate: new Date().toISOString().split('T')[0],\n    oneYearReturn: 21.8,\n    threeYearReturn: 21.4,\n    fiveYearReturn: 18.9,\n    expenseRatio: 0.62,\n    exitLoad: '2% within 365 days',\n    minimumSIP: 1000,\n    minimumInvestment: 1000,\n    suitabilityScore: 92,\n    scoreBreakdown: {\n      goalFit: 19,\n      riskFit: 20,\n      timeHorizon: 19,\n      consistency: 18,\n      cost: 9,\n      diversification: 7\n    },\n    whyItMatches: 'Suitable to explore based on your Moderate risk profile and 5-year investment horizon with consistent long-term CAGR.',\n    keyRisks: 'Market risk applies to equity portion.',\n    dataSource: 'MockMutualFundProvider',\n    dataDate: new Date().toISOString().split('T')[0]\n  }\n];\n\nreturn {\n  json: {\n    success: true,\n    intent: 'WEALTH',\n    subIntent: 'MUTUAL_FUND_RECOMMENDATION',\n    message: 'Here are mutual funds that may fit your profile.',\n    disclaimer: 'Suitable to explore based on your profile. Past performance does not guarantee future returns.',\n    data: recommendations,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Recommendation Engine Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Recommendation Engine Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recommendation Engine Node": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

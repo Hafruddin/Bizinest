@@ -1,0 +1,63 @@
+{
+  "name": "BizNest_Redemption_Simulation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-redemption-simulation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json.body || $input.first().json;\n\nconst units = Number(req.unitsToRedeem || 10);\nconst nav = Number(req.nav || 100);\nconst grossAmount = Number((units * nav).toFixed(2));\nconst exitLoadApplied = Number((grossAmount * 0.01).toFixed(2));\nconst netRedemptionAmount = Number((grossAmount - exitLoadApplied).toFixed(2));\n\nreturn {\n  json: {\n    success: true,\n    intent: 'WEALTH',\n    subIntent: 'REDEMPTION_SIMULATION',\n    mode: 'SIMULATION',\n    disclaimer: 'This is a simulated redemption. No real monetary transaction occurred.',\n    data: {\n      userId: req.userId,\n      fundId: req.fundId,\n      unitsRedeemed: units,\n      nav,\n      grossAmount,\n      exitLoadApplied,\n      netRedemptionAmount,\n      mode: 'SIMULATION',\n      status: 'Completed',\n      transactionDate: new Date().toISOString()\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Redemption Simulator Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 300]
+    }
+  ],
+  "connections": {
+    "Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Redemption Simulator Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redemption Simulator Node": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

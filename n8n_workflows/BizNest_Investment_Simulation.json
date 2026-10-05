@@ -1,0 +1,63 @@
+{
+  "name": "BizNest_Investment_Simulation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-investment-simulation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json.body || $input.first().json;\n\nconst amount = Number(req.amount || 5000);\nconst nav = Number(req.nav || 100);\nconst units = Number((amount / nav).toFixed(4));\n\nreturn {\n  json: {\n    success: true,\n    intent: 'WEALTH',\n    subIntent: 'INVESTMENT_SIMULATION',\n    mode: 'SIMULATION',\n    disclaimer: 'This is a simulated transaction. No real money was invested.',\n    data: {\n      userId: req.userId,\n      fundId: req.fundId,\n      fundName: req.fundName || 'Simulated Fund',\n      amount,\n      nav,\n      units,\n      mode: 'SIMULATION',\n      status: 'Completed',\n      transactionDate: new Date().toISOString()\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Simulation Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 300]
+    }
+  ],
+  "connections": {
+    "Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Simulation Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulation Processor": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

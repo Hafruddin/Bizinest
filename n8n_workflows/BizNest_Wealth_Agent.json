@@ -1,0 +1,63 @@
+{
+  "name": "BizNest_Wealth_Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-wealth-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nconst income = Number(input.income || 60000);\nconst expenses = Number(input.expenses || 35000);\nconst commitments = Number(input.mandatoryCommitments || 5000);\nconst emergencyFund = Number(input.emergencyFund || 100000);\n\nconst surplus = Math.max(0, income - expenses - commitments);\nconst monthlyBufferNeeds = expenses + commitments;\nconst emergencyMonths = monthlyBufferNeeds > 0 ? (emergencyFund / monthlyBufferNeeds) : 0;\n\n// Investment Capacity Logic\nlet factorMin = emergencyMonths < 3 ? 0.40 : 0.50;\nlet factorMax = emergencyMonths < 3 ? 0.70 : 0.80;\n\nconst capacityMin = Math.round(surplus * factorMin);\nconst capacityMax = Math.round(surplus * factorMax);\n\nreturn {\n  json: {\n    userId: input.userId,\n    financialSummary: {\n      monthlyIncome: income,\n      monthlyExpenses: expenses,\n      mandatoryCommitments: commitments,\n      monthlySurplus: surplus,\n      emergencyFundMonths: Number(emergencyMonths.toFixed(1))\n    },\n    estimatedInvestmentCapacity: {\n      min: capacityMin,\n      max: capacityMax,\n      recommendedMonthlyTarget: Math.round((capacityMin + capacityMax) / 2),\n      label: 'Estimated Investment Capacity'\n    },\n    riskProfile: input.riskProfile || 'Moderate',\n    operation: input.operation || 'PROFILE_SUMMARY'\n  }\n};"
+      },
+      "name": "Surplus & Capacity Calculator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, intent: 'WEALTH', data: $json, timestamp: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Surplus & Capacity Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Surplus & Capacity Calculator": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

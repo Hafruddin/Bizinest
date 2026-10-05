@@ -1,0 +1,164 @@
+{
+  "name": "BizNest_Main_Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-orchestrator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Authentication Context Validation\nif (!body.userId) {\n  throw new Error('Unauthorized: Authenticated user context required');\n}\n\nreturn {\n  json: {\n    userId: body.userId,\n    sessionId: body.sessionId || 'default_session',\n    message: body.message || '',
+    context: body.context || {},\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Auth & Input Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst msg = (data.message || '').toLowerCase();\n\nlet intent = 'GENERAL';\nlet subIntent = 'GENERAL_QUERY';\nlet requiresProfile = false;\nlet requiresMarketData = false;\nlet requiresDatabase = false;\n\nif (msg.includes('invoice') || msg.includes('bill') || msg.includes('gst')) {\n  intent = 'INVOICE';\n  subIntent = 'INVOICE_QUERY';\n  requiresDatabase = true;\n} else if (msg.includes('inventory') || msg.includes('stock') || msg.includes('sku')) {\n  intent = 'INVENTORY';\n  subIntent = 'INVENTORY_QUERY';\n  requiresDatabase = true;\n} else if (msg.includes('finance') || msg.includes('expense') || msg.includes('profit') || msg.includes('loss')) {\n  intent = 'FINANCE';\n  subIntent = 'FINANCE_QUERY';\n  requiresDatabase = true;\n} else if (msg.includes('document') || msg.includes('pdf') || msg.includes('ocr')) {\n  intent = 'DOCUMENT';\n  subIntent = 'DOCUMENT_QUERY';\n} else if (msg.includes('scheme') || msg.includes('pmegp') || msg.includes('mudra')) {\n  intent = 'SCHEME';\n  subIntent = 'SCHEME_QUERY';\n} else if (msg.includes('ticket') || msg.includes('support') || msg.includes('complaint')) {\n  intent = 'CUSTOMER_SUPPORT';\n  subIntent = 'SUPPORT_QUERY';\n} else if (msg.includes('invest') || msg.includes('mutual fund') || msg.includes('sip') || msg.includes('portfolio') || msg.includes('wealth') || msg.includes('risk') || msg.includes('surplus') || msg.includes('redeem')) {\n  intent = 'WEALTH';\n  requiresProfile = true;\n  requiresMarketData = true;\n  requiresDatabase = true;\n  \n  if (msg.includes('what is') || msg.includes('explain') || msg.includes('learn')) {\n    subIntent = 'WEALTH_EDUCATION';\n  } else if (msg.includes('risk')) {\n    subIntent = 'RISK_PROFILE';\n  } else if (msg.includes('capacity') || msg.includes('earn') || msg.includes('spend')) {\n    subIntent = 'INVESTMENT_CAPACITY';\n  } else if (msg.includes('goal')) {\n    subIntent = 'GOAL_PLANNING';\n  } else if (msg.includes('suggest') || msg.includes('recommend')) {\n    subIntent = 'MUTUAL_FUND_RECOMMENDATION';\n  } else if (msg.includes('compare')) {\n    subIntent = 'MUTUAL_FUND_COMPARE';\n  } else if (msg.includes('sip')) {\n    subIntent = 'SIP_CALCULATOR';\n  } else if (msg.includes('lump') || msg.includes('lumpsum')) {\n    subIntent = 'LUMP_SUM_CALCULATOR';\n  } else if (msg.includes('portfolio') && (msg.includes('down') || msg.includes('analysis') || msg.includes('health'))) {\n    subIntent = 'PORTFOLIO_ANALYSIS';\n  } else if (msg.includes('portfolio')) {\n    subIntent = 'PORTFOLIO';\n  } else if (msg.includes('watchlist')) {\n    subIntent = 'WATCHLIST';\n  } else if (msg.includes('simulate') || msg.includes('invest')) {\n    subIntent = 'INVESTMENT_SIMULATION';\n  } else if (msg.includes('redeem')) {\n    subIntent = 'REDEMPTION_SIMULATION';\n  } else {\n    subIntent = 'MUTUAL_FUND_SEARCH';\n  }\n}\n\nreturn {\n  json: {\n    ...data,\n    classification: {\n      intent,\n      subIntent,\n      confidence: 0.96,\n      requiresProfile,\n      requiresMarketData,\n      requiresDatabase\n    }\n  }\n};"
+      },
+      "name": "AI Intent Classifier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "value1": "={{ $json.classification.intent }}",
+              "value2": "WEALTH"
+            },
+            {
+              "value1": "={{ $json.classification.intent }}",
+              "value2": "INVOICE"
+            },
+            {
+              "value1": "={{ $json.classification.intent }}",
+              "value2": "INVENTORY"
+            },
+            {
+              "value1": "={{ $json.classification.intent }}",
+              "value2": "FINANCE"
+            }
+          ]
+        }
+      },
+      "name": "Intent Switch Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nlet textResponse = '';\n\nif (item.classification.intent === 'WEALTH') {\n  textResponse = `[BizNest Wealth Orchestrator] Intent: ${item.classification.subIntent}. Based on your financial profile and capacity, mutual fund investments are subject to market risks. Past performance does not guarantee future returns.`;\n} else {\n  textResponse = `[BizNest AI Orchestrator] Intent: ${item.classification.intent}. Request processed successfully for user ${item.userId}.`;\n}\n\nreturn {\n  json: {\n    success: true,\n    intent: item.classification.intent,\n    subIntent: item.classification.subIntent,\n    message: textResponse,\n    data: {\n      userId: item.userId,\n      classification: item.classification\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Response Formatter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1280, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Auth & Input Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth & Input Validation": {
+      "main": [
+        [
+          {
+            "node": "AI Intent Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Intent Classifier": {
+      "main": [
+        [
+          {
+            "node": "Intent Switch Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Switch Router": {
+      "main": [
+        [
+          {
+            "node": "Response Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Response Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Response Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Response Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Formatter": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

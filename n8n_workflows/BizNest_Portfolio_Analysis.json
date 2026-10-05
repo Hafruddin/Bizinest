@@ -1,0 +1,63 @@
+{
+  "name": "BizNest_Portfolio_Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "biznest-portfolio-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst totalInvested = 125000;\nconst currentValue = 138500;\nconst totalGain = 13500;\nconst gainPercent = 10.8;\n\nreturn {\n  json: {\n    success: true,\n    intent: 'WEALTH',\n    subIntent: 'PORTFOLIO_ANALYSIS',\n    summary: {\n      totalInvested,\n      currentValue,\n      totalGain,\n      gainPercent,\n      xirr: 14.5,\n      healthScore: 88\n    },\n    insights: [\n      {\n        title: 'Portfolio Health Rating: 88/100',\n        type: 'HEALTH_RATING',\n        message: 'Your portfolio is well diversified across market capitalizations.'\n      },\n      {\n        title: 'Category Exposure Review',\n        type: 'DIVERSIFICATION',\n        message: 'Ensure liquid fund allocation of 10-15% for immediate business cash flow needs.'\n      }\n    ],\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Portfolio Analytics Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 300]
+    }
+  ],
+  "connections": {
+    "Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Portfolio Analytics Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Portfolio Analytics Engine": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}
