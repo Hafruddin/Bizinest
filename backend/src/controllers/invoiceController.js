@@ -117,18 +117,31 @@ const createInvoice = async (req, res, next) => {
 
     if (items && Array.isArray(items)) {
       for (const item of items) {
-        const itemSubtotal = (item.quantity || 1) * (item.rate || 1000);
-        const gstPercent = Number(item.gstPercent || 18);
-        const taxAmount = itemSubtotal * (gstPercent / 100);
+        const itemSubtotal = (Number(item.quantity) || 1) * (Number(item.rate) || 1000);
+        const gstPercent = Number(item.gstPercent || item.taxRate || 18);
+        const cgstRate = gstPercent / 2;
+        const sgstRate = gstPercent / 2;
+        const cgstAmount = itemSubtotal * (cgstRate / 100);
+        const sgstAmount = itemSubtotal * (sgstRate / 100);
+        const taxAmount = cgstAmount + sgstAmount;
         subtotal += itemSubtotal;
         taxTotal += taxAmount;
 
         processedItems.push({
+          productId: item.productId || item._id,
           name: item.name || 'Industrial Item',
-          quantity: item.quantity || 1,
-          rate: item.rate || 1000,
-          cgst: gstPercent / 2,
-          sgst: gstPercent / 2,
+          hsn: item.hsn || '7208',
+          quantity: Number(item.quantity) || 1,
+          rate: Number(item.rate) || 1000,
+          taxRate: gstPercent,
+          gstPercent: gstPercent,
+          cgstRate: cgstRate,
+          sgstRate: sgstRate,
+          cgst: cgstAmount,
+          sgst: sgstAmount,
+          igst: 0,
+          taxableAmount: itemSubtotal,
+          taxAmount: taxAmount,
           amount: itemSubtotal + taxAmount,
         });
       }
@@ -143,13 +156,18 @@ const createInvoice = async (req, res, next) => {
       name: customerName || 'Enterprise Buyer',
       email: customerEmail || 'buyer@enterprise.in',
       phone: customerPhone || '9876543210',
-      address: customerAddress || 'India',
+      address: customerAddress || 'Mumbai, Maharashtra, India',
+      gstin: '27AAACT2727Q1ZW',
+      state: 'Maharashtra',
+      stateCode: '27',
     };
+
+    const businessProfile = (typeof targetBusinessId === 'object' && targetBusinessId?.name) ? targetBusinessId : demoStore.defaultBusiness;
 
     const newInvoice = {
       _id: `inv_${Date.now()}`,
       invoiceNumber: invoiceNumber || `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      businessId: targetBusinessId,
+      businessId: businessProfile,
       customerId: customerObj,
       customer: customerObj,
       issueDate: new Date().toISOString(),
@@ -200,6 +218,11 @@ const downloadPDF = async (req, res, next) => {
 
     if (!invoice) {
       return res.status(404).json({ status: 'error', message: 'Invoice not found' });
+    }
+
+    // Ensure businessId is populated with full business details
+    if (!invoice.businessId || typeof invoice.businessId === 'string' || !invoice.businessId.name) {
+      invoice.businessId = demoStore.defaultBusiness;
     }
 
     PDFService.generateInvoicePDF(invoice, res);

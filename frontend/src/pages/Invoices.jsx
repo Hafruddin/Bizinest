@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import { downloadClientInvoicePDF } from '../services/clientPdfService';
 import { useApp } from '../context/AppContext';
 import {
   FileSpreadsheet,
@@ -124,6 +125,14 @@ const Invoices = () => {
     });
   };
 
+  const handleItemGstChange = (index, value) => {
+    setInvoiceItems(prev => {
+      const updated = [...prev];
+      updated[index].gstPercent = Number(value);
+      return updated;
+    });
+  };
+
   const handleRemoveItem = (index) => {
     setInvoiceItems(prev => prev.filter((_, i) => i !== index));
   };
@@ -150,25 +159,38 @@ const Invoices = () => {
     statusMutation.mutate({ id, status: 'Paid' });
   };
 
-  const handleDownloadPDF = async (id, invoiceNumber) => {
+  const handleDownloadPDF = async (invoice) => {
     try {
-      showToast('Generating PDF Bill...', 'info');
-      const res = await api.get(`/invoices/${id}/pdf`, {
-        responseType: 'blob',
-      });
+      showToast('Generating GST Tax Invoice...', 'info');
       
-      const file = new Blob([res.data], { type: 'application/pdf' });
-      const fileURL = URL.createObjectURL(file);
-      
-      const link = document.createElement('a');
-      link.href = fileURL;
-      link.setAttribute('download', `Invoice-${invoiceNumber}.pdf`);
-      document.body.appendChild(link);
-      
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(fileURL);
-      showToast('PDF Invoice downloaded successfully!', 'success');
+      // Attempt backend PDFKit endpoint first (when backend server is accessible)
+      try {
+        const res = await api.get(`/invoices/${invoice._id}/pdf`, {
+          responseType: 'blob',
+        });
+        
+        if (res.data && res.data.size > 100 && res.data.type === 'application/pdf') {
+          const file = new Blob([res.data], { type: 'application/pdf' });
+          const fileURL = URL.createObjectURL(file);
+          
+          const link = document.createElement('a');
+          link.href = fileURL;
+          link.setAttribute('download', `Invoice-${invoice.invoiceNumber}.pdf`);
+          document.body.appendChild(link);
+          
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(fileURL);
+          showToast('GST Tax Invoice downloaded successfully!', 'success');
+          return;
+        }
+      } catch (backendErr) {
+        console.warn('Backend PDF endpoint unavailable, generating via client PDF engine...', backendErr);
+      }
+
+      // Seamless Client-Side jsPDF Engine (instant, reliable on Netlify and offline)
+      downloadClientInvoicePDF(invoice);
+      showToast('GST Tax Invoice downloaded successfully!', 'success');
     } catch (err) {
       console.error('Failed to download invoice PDF:', err);
       showToast('Failed to download invoice PDF.', 'error');
@@ -177,28 +199,48 @@ const Invoices = () => {
 
   const handleDownloadCSV = (invoice) => {
     try {
-      const headers = ['Invoice Number', 'Client Name', 'Client Email', 'Issue Date', 'Item Name', 'Quantity', 'Rate', 'GST %', 'Total Amount'];
-      const rows = invoice.items.map(item => [
-        invoice.invoiceNumber,
-        invoice.customerId?.name || 'Guest',
-        invoice.customerId?.email || 'N/A',
-        new Date(invoice.issueDate).toLocaleDateString(),
-        item.name,
-        item.quantity,
-        item.rate,
-        18,
-        item.amount
-      ]);
+      const headers = ['Invoice Number', 'Client Name', 'Client GSTIN', 'Client Email', 'Issue Date', 'Item Name', 'Quantity', 'Unit Rate (INR)', 'Taxable Amount (INR)', 'GST %', 'Govt Central Tax CGST (INR)', 'State Tax SGST (INR)', 'Total Tax (INR)', 'Grand Total (INR)'];
+      const rows = invoice.items.map(item => {
+        const qty = item.quantity || 1;
+        const rate = item.rate || 0;
+        const taxable = item.taxableAmount !== undefined ? item.taxableAmount : (qty * rate);
+        const taxRate = item.taxRate || item.gstPercent || 18;
+        const cgst = item.cgst !== undefined ? item.cgst : (taxable * (taxRate / 200));
+        const sgst = item.sgst !== undefined ? item.sgst : (taxable * (taxRate / 200));
+        const totalTax = cgst + sgst;
+        const amount = item.amount || (taxable + totalTax);
+        return [
+          invoice.invoiceNumber,
+          invoice.customerId?.name || 'Customer',
+          invoice.customerId?.gstin || '27AAACT2727Q1ZW',
+          invoice.customerId?.email || 'N/A',
+          new Date(invoice.issueDate).toLocaleDateString(),
+          item.name,
+          qty,
+          rate,
+          taxable,
+          `${taxRate}%`,
+          cgst,
+          sgst,
+          totalTax,
+          amount
+        ];
+      });
 
       // Append summary row
       rows.push([
         'SUBTOTAL',
         invoice.subtotal,
-        'TAX TOTAL',
+        'CENTRAL CGST',
+        (invoice.taxTotal / 2),
+        'STATE SGST',
+        (invoice.taxTotal / 2),
+        'TOTAL TAX',
         invoice.taxTotal,
         'DISCOUNT',
-        invoice.discount,
+        invoice.discount || 0,
         'GRAND TOTAL',
+        '',
         '',
         invoice.total
       ]);
@@ -220,9 +262,11 @@ const Invoices = () => {
     }
   };
 
-  // Compute live subtotal & total
+  // Compute live subtotal & Central/State taxes
   const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (item.quantity * item.rate), 0);
-  const computedTax = invoiceItems.reduce((sum, item) => sum + (item.quantity * item.rate * (item.gstPercent / 100)), 0);
+  const computedCgst = invoiceItems.reduce((sum, item) => sum + (item.quantity * item.rate * ((item.gstPercent || 18) / 200)), 0);
+  const computedSgst = invoiceItems.reduce((sum, item) => sum + (item.quantity * item.rate * ((item.gstPercent || 18) / 200)), 0);
+  const computedTax = computedCgst + computedSgst;
   const computedGrandTotal = computedSubtotal + computedTax - Number(discount);
 
   return (
@@ -385,28 +429,48 @@ const Invoices = () => {
                   {invoiceItems.length === 0 ? (
                     <p className="text-[10px] text-slate-400 italic">No products added. Add items from dropdown above.</p>
                   ) : (
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
                       {invoiceItems.map((item, index) => (
-                        <div key={item.productId} className="flex justify-between items-center gap-2 p-2 border border-slate-100 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl text-[11px]">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold truncate">{item.name}</p>
-                            <p className="text-[9px] text-slate-400">₹{item.rate.toLocaleString('en-IN')} x {item.quantity}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={item.quantity}
-                              min="1"
-                              onChange={(e) => handleItemQtyChange(index, e.target.value)}
-                              className="w-10 text-center rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-0.5 text-[10px]"
-                            />
+                        <div key={item.productId} className="p-2.5 border border-slate-100 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl text-[11px] space-y-1.5">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold truncate">{item.name}</p>
+                              <p className="text-[9px] text-slate-400">₹{item.rate.toLocaleString('en-IN')} x {item.quantity}</p>
+                            </div>
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(index)}
-                              className="text-slate-450 hover:text-rose-500"
+                              className="text-slate-400 hover:text-rose-500 p-0.5"
                             >
                               <Trash className="h-3.5 w-3.5" />
                             </button>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-slate-400">Qty:</span>
+                              <input
+                                type="number"
+                                value={item.quantity}
+                                min="1"
+                                onChange={(e) => handleItemQtyChange(index, e.target.value)}
+                                className="w-12 text-center rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-0.5 text-[10px]"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-slate-400">GST:</span>
+                              <select
+                                value={item.gstPercent || 18}
+                                onChange={(e) => handleItemGstChange(index, e.target.value)}
+                                className="rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400"
+                              >
+                                <option value="5">5% (2.5% + 2.5%)</option>
+                                <option value="12">12% (6% + 6%)</option>
+                                <option value="18">18% (9% + 9%)</option>
+                                <option value="28">28% (14% + 14%)</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -425,15 +489,23 @@ const Invoices = () => {
                   />
                 </div>
 
-                {/* Calculation Summary box */}
+                {/* Calculation Summary box with Central and State Taxes */}
                 <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850 space-y-1.5 text-xs text-slate-500">
                   <div className="flex justify-between">
-                    <span>Subtotal:</span>
+                    <span>Taxable Subtotal:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">₹{computedSubtotal.toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Estimated GST (18%):</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">₹{computedTax.toLocaleString('en-IN')}</span>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                    <span>Central Govt Tax (CGST):</span>
+                    <span className="font-semibold">₹{computedCgst.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                    <span>State Govt Tax (SGST):</span>
+                    <span className="font-semibold">₹{computedSgst.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-blue-600 dark:text-blue-400 font-medium">
+                    <span>Total GST Tax:</span>
+                    <span className="font-semibold">₹{computedTax.toLocaleString('en-IN')}</span>
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-rose-500">
@@ -443,7 +515,7 @@ const Invoices = () => {
                   )}
                   <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 text-sm font-bold text-slate-900 dark:text-slate-100">
                     <span>Grand Total:</span>
-                    <span>₹{computedGrandTotal.toLocaleString('en-IN')}</span>
+                    <span className="text-blue-600 dark:text-blue-400">₹{computedGrandTotal.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
@@ -516,8 +588,13 @@ const Invoices = () => {
                     <td className="py-4 px-4 text-slate-500">
                       {new Date(invoice.issueDate).toLocaleDateString()}
                     </td>
-                    <td className="py-4 px-4 text-right font-bold text-slate-900 dark:text-slate-100">
-                      ₹{invoice.total.toLocaleString('en-IN')}
+                    <td className="py-4 px-4 text-right">
+                      <div className="font-bold text-slate-900 dark:text-slate-100">
+                        ₹{invoice.total.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        Tax: ₹{invoice.taxTotal.toLocaleString('en-IN')} (18% GST)
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-center">
                       <span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider ${
@@ -542,7 +619,7 @@ const Invoices = () => {
                           </button>
                         )}
                         <button
-                          onClick={() => handleDownloadPDF(invoice._id, invoice.invoiceNumber)}
+                          onClick={() => handleDownloadPDF(invoice)}
                           title="Download PDF Bill"
                           className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-blue-600 hover:border-blue-500/25 transition-colors"
                         >
