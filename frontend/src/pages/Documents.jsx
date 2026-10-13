@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import * as demoData from '../services/demoData';
 import { useApp } from '../context/AppContext';
 import {
   FileText,
@@ -31,6 +32,10 @@ const Documents = () => {
       const res = await api.get('/documents');
       return res.data;
     },
+    initialData: {
+      status: 'success',
+      data: demoData.documents,
+    },
     // Poll documents every 5 seconds while processing
     refetchInterval: (query) => {
       const docs = query.state.data?.data || [];
@@ -50,7 +55,11 @@ const Documents = () => {
       const res = await api.get(`/documents/${activeDocId}`);
       return res.data;
     },
-    enabled: !!activeDocId
+    enabled: !!activeDocId,
+    initialData: {
+      status: 'success',
+      data: demoData.documents[0],
+    }
   });
 
   const selectedDoc = selectedDocRes?.data || (documents.length > 0 ? documents.find(d => d._id === activeDocId) : null);

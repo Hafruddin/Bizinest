@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { downloadClientInvoicePDF } from '../services/clientPdfService';
+import * as demoData from '../services/demoData';
 import { useApp } from '../context/AppContext';
 import {
   FileSpreadsheet,
@@ -42,6 +43,11 @@ const Invoices = () => {
         params: { search, status }
       });
       return res.data;
+    },
+    initialData: {
+      status: 'success',
+      total: demoData.invoices.length,
+      data: demoData.invoices,
     }
   });
 
@@ -51,6 +57,11 @@ const Invoices = () => {
     queryFn: async () => {
       const res = await api.get('/inventory', { params: { limit: 100 } });
       return res.data;
+    },
+    initialData: {
+      status: 'success',
+      total: demoData.products.length,
+      data: demoData.products,
     }
   });
 

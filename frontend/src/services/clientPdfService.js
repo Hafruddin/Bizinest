@@ -1,8 +1,8 @@
-import { jsPDF } from 'jspdf/dist/jspdf.umd.min.js';
-
 /**
- * Helper to convert numbers to Indian Rupee Words (Lakh, Crore system).
+ * Client-Side Indian GST Tax Invoice Print & PDF Generator
+ * Zero external dependencies. Works 100% reliably in any browser on Netlify.
  */
+
 function numberToIndianWords(num) {
   if (!num || isNaN(num)) return 'Zero Rupees Only';
   num = Math.round(Number(num));
@@ -47,20 +47,11 @@ function numberToIndianWords(num) {
 
 function formatCurrency(val) {
   const num = Number(val) || 0;
-  return 'Rs. ' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/**
- * Client-Side Indian GST Tax Invoice Generator using jsPDF.
- * Used seamlessly on Netlify / Client offline mode.
- */
 export const downloadClientInvoicePDF = (invoice) => {
-  const doc = new jsPDF({ format: 'a4', unit: 'pt' });
-
-  const primaryR = 30, primaryG = 58, primaryB = 138;      // #1e3a8a
-  const darkR = 15, darkG = 23, darkB = 42;               // #0f172a
-  const grayR = 71, grayG = 85, grayB = 105;              // #475569
-  const borderR = 203, borderG = 213, borderB = 225;      // #cbd5e1
+  if (!invoice) return;
 
   const business = (invoice.businessId && typeof invoice.businessId === 'object' && invoice.businessId.name)
     ? invoice.businessId
@@ -82,367 +73,358 @@ export const downloadClientInvoicePDF = (invoice) => {
 
   const customer = invoice.customerId || invoice.customer || {};
   const customerName = customer.name || 'Enterprise Client';
-  const customerAddress = customer.address || 'Mumbai, Maharashtra, India';
+  const customerAddress = customer.address || 'Industrial Zone, India';
   const customerGstin = customer.gstin || '27AAACT2727Q1ZW';
-  const customerState = customer.state || 'Maharashtra';
-  const customerStateCode = customer.stateCode || '27';
+  const customerPhone = customer.phone || '+91 98765 43210';
+  const customerEmail = customer.email || 'accounts@client.com';
 
   const issueDateStr = invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
   const dueDateStr = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-IN') : new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-IN');
 
-  // --- Top Left: Enterprise Seller Details ---
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text(business.name, 36, 48);
-
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7.5);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text('Industrial Equipment & Precision Engineering | MSME Reg: UDYAM-TN-02-0045129', 36, 60);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(darkR, darkG, darkB);
-  doc.text(business.address?.street || 'Plot 45, Guindy Industrial Estate', 36, 72);
-  doc.text(`${business.address?.city || 'Chennai'}, ${business.address?.state || 'Tamil Nadu'} - ${business.address?.zip || '600032'}`, 36, 82);
-  doc.text(`GSTIN: ${business.gstin || '33AAAAA1234A1Z5'} | PAN: ${business.pan || 'AAAAA1234A'} | State: Tamil Nadu (33)`, 36, 92);
-  doc.text(`Phone: ${business.phone || '+91 44 2250 8899'} | Email: ${business.email || 'billing@apexdynamics.in'}`, 36, 102);
-
-  // --- Top Right: Tax Invoice Header ---
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('TAX INVOICE', 559, 48, { align: 'right' });
-
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text('(Original for Recipient | Under Rule 48 of CGST Rules, 2017)', 559, 60, { align: 'right' });
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(darkR, darkG, darkB);
-  doc.text(`Invoice #: ${invoice.invoiceNumber}`, 559, 73, { align: 'right' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(`Invoice Date: ${issueDateStr}`, 559, 85, { align: 'right' });
-  doc.text(`Due Date: ${dueDateStr}`, 559, 97, { align: 'right' });
-
-  const status = invoice.status || 'Sent';
-  doc.setFont('helvetica', 'bold');
-  if (status === 'Paid') {
-    doc.setTextColor(22, 163, 74);
-  } else if (status === 'Overdue') {
-    doc.setTextColor(217, 119, 6);
-  } else {
-    doc.setTextColor(primaryR, primaryG, primaryB);
-  }
-  doc.text(`Status: ${status.toUpperCase()}`, 559, 109, { align: 'right' });
-
-  // --- Bill To & Logistics Details Box ---
-  const boxY = 122;
-  const boxHeight = 72;
-  doc.setDrawColor(borderR, borderG, borderB);
-  doc.setFillColor(248, 250, 252);
-  doc.rect(36, boxY, 523, boxHeight, 'FD');
-  doc.line(295, boxY, 295, boxY + boxHeight);
-
-  // Left: Bill To
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('BILL TO (BUYER / RECIPIENT DETAILS):', 44, boxY + 14);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(darkR, darkG, darkB);
-  doc.text(customerName, 44, boxY + 27);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text(customerAddress, 44, boxY + 39);
-  doc.text(`GSTIN: ${customerGstin} | State: ${customerState} (${customerStateCode})`, 44, boxY + 50);
-  doc.text(`Email: ${customer.email || 'procurement@client.in'} | Phone: ${customer.phone || '9876543210'}`, 44, boxY + 61);
-
-  // Right: Logistics & Taxes
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('DISPATCH & TAXATION PARTICULARS:', 305, boxY + 14);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text(`Place of Supply: ${customerState} (${customerStateCode})`, 305, boxY + 27);
-  doc.text('Dispatch Location: Guindy Industrial Estate, Chennai (33)', 305, boxY + 39);
-  doc.text('Reverse Charge (RCM): No | Transport Mode: Surface Freight', 305, boxY + 50);
-  doc.text('Payment Terms: Net 14 Days (Direct Bank Transfer / NEFT / RTGS)', 305, boxY + 61);
-
-  // --- Line Items Table ---
-  let tableY = 204;
-  const headerH = 20;
-  doc.setFillColor(241, 245, 249);
-  doc.rect(36, tableY, 523, headerH, 'FD');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('#', 48, tableY + 13, { align: 'center' });
-  doc.text('ITEM DESCRIPTION', 65, tableY + 13);
-  doc.text('HSN/SAC', 245, tableY + 13, { align: 'center' });
-  doc.text('QTY', 295, tableY + 13, { align: 'right' });
-  doc.text('RATE', 355, tableY + 13, { align: 'right' });
-  doc.text('TAXABLE VAL', 425, tableY + 13, { align: 'right' });
-  doc.text('TAX %', 468, tableY + 13, { align: 'center' });
-  doc.text('TOTAL (Rs)', 550, tableY + 13, { align: 'right' });
-
-  tableY += headerH;
-
-  const items = Array.isArray(invoice.items) && invoice.items.length > 0 ? invoice.items : [
-    { name: 'Industrial Equipment & Materials', hsn: '7208', quantity: 1, rate: 50000, taxRate: 18, amount: 59000 }
+  const items = (invoice.items && invoice.items.length > 0) ? invoice.items : [
+    { name: 'Industrial Equipment Consignment', hsn: '8481', quantity: 1, rate: invoice.subtotal || invoice.total, taxableAmount: invoice.subtotal || invoice.total, cgst: (invoice.taxTotal || 0) / 2, sgst: (invoice.taxTotal || 0) / 2, amount: invoice.total }
   ];
 
-  const taxSummaryMap = {};
-  let calculatedSubtotal = 0;
-  let calculatedTaxTotal = 0;
+  const subtotal = invoice.subtotal || items.reduce((acc, i) => acc + (i.taxableAmount || (i.rate * i.quantity)), 0);
+  const taxTotal = invoice.taxTotal || (invoice.total - subtotal) || 0;
+  const grandTotal = invoice.total || (subtotal + taxTotal);
+  const cgstTotal = items.reduce((acc, i) => acc + (i.cgst || (i.cgstRate ? (i.taxableAmount * i.cgstRate / 100) : (taxTotal / 2))), 0);
+  const sgstTotal = items.reduce((acc, i) => acc + (i.sgst || (i.sgstRate ? (i.taxableAmount * i.sgstRate / 100) : (taxTotal / 2))), 0);
+  const words = numberToIndianWords(grandTotal);
 
-  items.forEach((item, idx) => {
-    const qty = Number(item.quantity) || 1;
-    const rate = Number(item.rate) || 0;
-    const taxable = item.taxableAmount !== undefined ? Number(item.taxableAmount) : (qty * rate);
-
-    let taxPercent = 18;
-    if (typeof item.taxRate === 'number' && !isNaN(item.taxRate) && item.taxRate > 0) {
-      taxPercent = item.taxRate;
-    } else if (typeof item.gstPercent === 'number' && !isNaN(item.gstPercent) && item.gstPercent > 0) {
-      taxPercent = item.gstPercent;
-    } else if (item.cgstRate && item.sgstRate) {
-      taxPercent = item.cgstRate + item.sgstRate;
-    } else if (taxable > 0 && (item.cgst || item.sgst)) {
-      const sumTax = (Number(item.cgst) || 0) + (Number(item.sgst) || 0) + (Number(item.igst) || 0);
-      if (sumTax < 100) taxPercent = sumTax;
-      else taxPercent = Math.round((sumTax / taxable) * 100);
-    } else if (item.amount && taxable > 0 && item.amount > taxable) {
-      taxPercent = Math.round(((item.amount - taxable) / taxable) * 100);
+  const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GST Tax Invoice - ${invoice.invoiceNumber || 'INV-2026'}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      padding: 20px;
+      font-size: 12px;
+      line-height: 1.4;
     }
-
-    const cgstPercent = taxPercent / 2;
-    const sgstPercent = taxPercent / 2;
-    const cgstAmt = taxable * (cgstPercent / 100);
-    const sgstAmt = taxable * (sgstPercent / 100);
-    const itemTaxTotal = cgstAmt + sgstAmt;
-    const itemFinalTotal = taxable + itemTaxTotal;
-
-    calculatedSubtotal += taxable;
-    calculatedTaxTotal += itemTaxTotal;
-
-    const hsn = item.hsn || '7208';
-
-    if (!taxSummaryMap[taxPercent]) {
-      taxSummaryMap[taxPercent] = {
-        hsn,
-        taxPercent,
-        cgstRate: cgstPercent,
-        sgstRate: sgstPercent,
-        taxable: 0,
-        cgstAmt: 0,
-        sgstAmt: 0,
-        totalTax: 0,
-      };
+    .invoice-card {
+      max-width: 800px;
+      margin: 0 auto;
+      border: 1.5px solid #0f172a;
+      padding: 24px;
+      background: #ffffff;
     }
-    taxSummaryMap[taxPercent].taxable += taxable;
-    taxSummaryMap[taxPercent].cgstAmt += cgstAmt;
-    taxSummaryMap[taxPercent].sgstAmt += sgstAmt;
-    taxSummaryMap[taxPercent].totalTax += itemTaxTotal;
-
-    const rowH = 19;
-    if (idx % 2 === 1) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(36, tableY, 523, rowH, 'F');
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
     }
+    .company-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .company-sub {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 4px;
+    }
+    .invoice-title-block {
+      text-align: right;
+    }
+    .invoice-badge {
+      display: inline-block;
+      background: #1e3a8a;
+      color: #ffffff;
+      padding: 4px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .inv-meta {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #334155;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 16px;
+    }
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 2px;
+    }
+    .entity-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 3px;
+    }
+    .entity-detail {
+      font-size: 11px;
+      color: #334155;
+      margin-bottom: 2px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 11px;
+    }
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 10px;
+      padding: 8px 6px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+    }
+    th.text-right, td.text-right { text-align: right; }
+    th.text-center, td.text-center { text-align: center; }
+    td {
+      padding: 8px 6px;
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
+    }
+    tr:nth-child(even) td { background: #fafafa; }
+    .tax-breakdown {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .words-box {
+      border: 1px solid #cbd5e1;
+      padding: 12px;
+      border-radius: 6px;
+      background: #f8fafc;
+    }
+    .totals-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 12px;
+      font-size: 11px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .grand-total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: #1e3a8a;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .footer-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      border-top: 1px solid #cbd5e1;
+      padding-top: 16px;
+      margin-top: 16px;
+    }
+    .sign-box {
+      text-align: right;
+      padding-top: 24px;
+    }
+    .sign-line {
+      display: inline-block;
+      width: 180px;
+      border-top: 1px dashed #64748b;
+      margin-top: 36px;
+      padding-top: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+      color: #475569;
+    }
+    .actions-bar {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .btn-print {
+      background: #1e3a8a;
+      color: #ffffff;
+      border: none;
+      padding: 10px 24px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 0 8px;
+    }
+    @media print {
+      body { padding: 0; background: none; }
+      .invoice-card { border: none; padding: 0; max-width: 100%; }
+      .actions-bar { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions-bar">
+    <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    <button class="btn-print" style="background:#475569" onclick="window.close()">✕ Close Window</button>
+  </div>
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(darkR, darkG, darkB);
-    doc.text((idx + 1).toString(), 48, tableY + 12, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.text(item.name || 'Industrial Product', 65, tableY + 12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(hsn, 245, tableY + 12, { align: 'center' });
-    doc.text(qty.toString(), 295, tableY + 12, { align: 'right' });
-    doc.text(rate.toFixed(2), 355, tableY + 12, { align: 'right' });
-    doc.text(taxable.toFixed(2), 425, tableY + 12, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(primaryR, primaryG, primaryB);
-    doc.text(`${taxPercent}%`, 468, tableY + 12, { align: 'center' });
-    doc.setTextColor(darkR, darkG, darkB);
-    doc.text(itemFinalTotal.toFixed(2), 550, tableY + 12, { align: 'right' });
+  <div class="invoice-card">
+    <div class="header-bar">
+      <div>
+        <div class="company-name">${business.name}</div>
+        <div class="company-sub">Plot 45, Guindy Industrial Estate, Chennai, Tamil Nadu - 600032</div>
+        <div class="company-sub"><strong>GSTIN:</strong> ${business.gstin || '33AAAAA1234A1Z5'} | <strong>PAN:</strong> ${business.pan || 'AAAAA1234A'} | <strong>State Code:</strong> 33 (TN)</div>
+        <div class="company-sub">Email: ${business.email || 'billing@apexdynamics.in'} | Phone: ${business.phone || '+91 44 2250 8899'}</div>
+      </div>
+      <div class="invoice-title-block">
+        <span class="invoice-badge">TAX INVOICE</span>
+        <div class="inv-meta"><strong>Invoice No:</strong> ${invoice.invoiceNumber}</div>
+        <div class="inv-meta"><strong>Issue Date:</strong> ${issueDateStr}</div>
+        <div class="inv-meta"><strong>Due Date:</strong> ${dueDateStr}</div>
+        <div class="inv-meta"><strong>Status:</strong> <span style="font-weight:700; color:${invoice.status === 'Paid' ? '#16a34a' : '#d97706'}">${invoice.status}</span></div>
+      </div>
+    </div>
 
-    tableY += rowH;
-  });
+    <div class="grid-2">
+      <div>
+        <div class="section-title">Billed To (Customer Details)</div>
+        <div class="entity-name">${customerName}</div>
+        <div class="entity-detail">${customerAddress}</div>
+        <div class="entity-detail"><strong>GSTIN:</strong> ${customerGstin}</div>
+        <div class="entity-detail"><strong>Contact:</strong> ${customerPhone} | ${customerEmail}</div>
+      </div>
+      <div>
+        <div class="section-title">Transportation & Supply Details</div>
+        <div class="entity-detail"><strong>Place of Supply:</strong> ${customer.state || 'Maharashtra'} (Code: ${customer.stateCode || '27'})</div>
+        <div class="entity-detail"><strong>Reverse Charge:</strong> No</div>
+        <div class="entity-detail"><strong>Payment Terms:</strong> Net 14 Days</div>
+        <div class="entity-detail"><strong>Mode of Dispatch:</strong> Dedicated Industrial Freight</div>
+      </div>
+    </div>
 
-  doc.line(36, tableY, 559, tableY);
-  tableY += 10;
+    <table>
+      <thead>
+        <tr>
+          <th class="text-center" style="width: 30px;">#</th>
+          <th>Description of Goods / Services</th>
+          <th class="text-center">HSN</th>
+          <th class="text-right">Qty</th>
+          <th class="text-right">Rate</th>
+          <th class="text-right">Taxable Value</th>
+          <th class="text-right">CGST</th>
+          <th class="text-right">SGST</th>
+          <th class="text-right">Total (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item, idx) => {
+          const qty = item.quantity || 1;
+          const rate = item.rate || 0;
+          const taxable = item.taxableAmount || (qty * rate);
+          const cgst = item.cgst || (taxable * 0.09);
+          const sgst = item.sgst || (taxable * 0.09);
+          const lineTotal = item.amount || (taxable + cgst + sgst);
+          return `
+          <tr>
+            <td class="text-center">${idx + 1}</td>
+            <td><strong>${item.name || item.description || 'Industrial Item'}</strong></td>
+            <td class="text-center font-mono">${item.hsn || '7208'}</td>
+            <td class="text-right font-semibold">${qty}</td>
+            <td class="text-right">${formatCurrency(rate)}</td>
+            <td class="text-right font-semibold">${formatCurrency(taxable)}</td>
+            <td class="text-right">${formatCurrency(cgst)} (9%)</td>
+            <td class="text-right">${formatCurrency(sgst)} (9%)</td>
+            <td class="text-right font-bold">${formatCurrency(lineTotal)}</td>
+          </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
 
-  const finalSubtotal = Number(invoice.subtotal) || calculatedSubtotal;
-  const finalTaxTotal = Number(invoice.taxTotal) || calculatedTaxTotal;
-  const finalDiscount = Number(invoice.discount) || 0;
-  const finalGrandTotal = Number(invoice.total) || (finalSubtotal + finalTaxTotal - finalDiscount);
+    <div class="tax-breakdown">
+      <div class="words-box">
+        <div class="section-title">Invoice Amount in Words</div>
+        <div style="font-weight:700; color:#1e3a8a; font-size:12px; margin-top:4px;">${words}</div>
+        <div style="margin-top:12px; font-size:10px; color:#64748b; line-height:1.5;">
+          <strong>Bank Payment Details:</strong><br>
+          Bank: HDFC Bank Ltd (Guindy SME Branch)<br>
+          Account Name: Apex Dynamics Manufacturing Enterprises<br>
+          Account No: 50200084729103 | IFSC: HDFC0001824
+        </div>
+      </div>
+      <div class="totals-box">
+        <div class="total-row"><span>Taxable Subtotal:</span><span class="font-semibold">${formatCurrency(subtotal)}</span></div>
+        <div class="total-row"><span>Central GST (CGST 9%):</span><span class="font-semibold">${formatCurrency(cgstTotal)}</span></div>
+        <div class="total-row"><span>State GST (SGST 9%):</span><span class="font-semibold">${formatCurrency(sgstTotal)}</span></div>
+        ${invoice.discount ? `<div class="total-row" style="color:#e11d48"><span>Discount:</span><span>- ${formatCurrency(invoice.discount)}</span></div>` : ''}
+        <div class="grand-total-row"><span>Grand Total:</span><span>${formatCurrency(grandTotal)}</span></div>
+      </div>
+    </div>
 
-  // --- GST Tax Computation Breakdown Table ---
-  const taxSectionY = tableY;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('GST TAX COMPUTATION BREAKDOWN (Central Govt Tax CGST + State Govt Tax SGST)', 36, taxSectionY + 8);
+    <div class="footer-bar">
+      <div>
+        <div class="section-title">Terms & Conditions</div>
+        <p style="font-size:10px; color:#64748b; line-height:1.4;">
+          1. Goods once sold will not be accepted back without inspection.<br>
+          2. Interest @ 18% p.a. will be charged if payment is delayed beyond due date.<br>
+          3. Subject to Chennai jurisdiction only.
+        </p>
+      </div>
+      <div class="sign-box">
+        <div style="font-size:11px; font-weight:700; color:#0f172a;">For ${business.name}</div>
+        <div class="sign-line">Authorized Signatory</div>
+      </div>
+    </div>
+  </div>
 
-  const taxGridY = taxSectionY + 14;
-  const taxHeaderH = 18;
-  doc.setFillColor(241, 245, 249);
-  doc.rect(36, taxGridY, 523, taxHeaderH, 'FD');
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 350);
+    };
+  </script>
+</body>
+</html>`;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(darkR, darkG, darkB);
-  doc.text('HSN / SAC', 44, taxGridY + 12);
-  doc.text('TAXABLE VALUE', 170, taxGridY + 12, { align: 'right' });
-  doc.text('CENTRAL TAX (CGST)', 260, taxGridY + 12, { align: 'center' });
-  doc.text('STATE TAX (SGST)', 375, taxGridY + 12, { align: 'center' });
-  doc.text('TOTAL TAX AMOUNT', 550, taxGridY + 12, { align: 'right' });
-
-  let taxRowY = taxGridY + taxHeaderH;
-  Object.values(taxSummaryMap).forEach((ts) => {
-    const rowH = 17;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(darkR, darkG, darkB);
-    doc.text(ts.hsn, 44, taxRowY + 11);
-    doc.text(formatCurrency(ts.taxable), 170, taxRowY + 11, { align: 'right' });
-    doc.text(`${ts.cgstRate}% (${formatCurrency(ts.cgstAmt)})`, 260, taxRowY + 11, { align: 'center' });
-    doc.text(`${ts.sgstRate}% (${formatCurrency(ts.sgstAmt)})`, 375, taxRowY + 11, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(ts.totalTax), 550, taxRowY + 11, { align: 'right' });
-    taxRowY += rowH;
-  });
-
-  const totalCentralTax = Object.values(taxSummaryMap).reduce((acc, ts) => acc + ts.cgstAmt, 0);
-  const totalStateTax = Object.values(taxSummaryMap).reduce((acc, ts) => acc + ts.sgstAmt, 0);
-
-  doc.setFillColor(248, 250, 252);
-  doc.rect(36, taxRowY, 523, 17, 'FD');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('TOTAL TAX:', 44, taxRowY + 11);
-  doc.text(formatCurrency(finalSubtotal), 170, taxRowY + 11, { align: 'right' });
-  doc.text(`Govt CGST: ${formatCurrency(totalCentralTax)}`, 260, taxRowY + 11, { align: 'center' });
-  doc.text(`State SGST: ${formatCurrency(totalStateTax)}`, 375, taxRowY + 11, { align: 'center' });
-  doc.text(formatCurrency(finalTaxTotal), 550, taxRowY + 11, { align: 'right' });
-
-  taxRowY += 24;
-
-  // --- Summary & Settlement Section ---
-  const summaryBoxY = taxRowY;
-  const leftW = 280;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('Total Invoice Amount in Words:', 36, summaryBoxY + 8);
-
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7.5);
-  doc.setTextColor(darkR, darkG, darkB);
-  doc.text(numberToIndianWords(finalGrandTotal), 36, summaryBoxY + 20, { maxWidth: leftW });
-
-  // Bank Details Box
-  const bankY = summaryBoxY + 36;
-  doc.setFillColor(248, 250, 252);
-  doc.rect(36, bankY, leftW, 58, 'FD');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('BANK DETAILS FOR NEFT / RTGS / IMPS PAYMENT:', 42, bankY + 13);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text('Bank Name: State Bank of India (SBI)', 42, bankY + 25);
-  doc.text('Account Name: Apex Dynamics Manufacturing Enterprises', 42, bankY + 35);
-  doc.text('Account Number: 987654321098 | Account Type: Current A/C', 42, bankY + 45);
-  doc.text('IFSC Code: SBIN0001234 | Branch: Guindy Industrial Estate, Chennai', 42, bankY + 55);
-
-  // Right: Calculation Summary Box
-  const rightX = 330;
-  const rightW = 229;
-  doc.setFillColor(248, 250, 252);
-  doc.rect(rightX, summaryBoxY, rightW, 94, 'FD');
-
-  let calcY = summaryBoxY + 14;
-  const printLine = (label, value, isBold = false, color = darkR, fontSize = 7.5) => {
-    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-    doc.setFontSize(fontSize);
-    doc.setTextColor(color === darkR ? darkR : (color === primaryR ? primaryR : 225), color === darkR ? darkG : (color === primaryR ? primaryG : 29), color === darkR ? darkB : (color === primaryR ? primaryB : 72));
-    doc.text(label, rightX + 10, calcY);
-    doc.text(value, rightX + rightW - 10, calcY, { align: 'right' });
-    calcY += 13;
-  };
-
-  printLine('Taxable Subtotal:', formatCurrency(finalSubtotal));
-  printLine('Govt Central Tax (CGST):', formatCurrency(totalCentralTax));
-  printLine('State Govt Tax (SGST):', formatCurrency(totalStateTax));
-  printLine('Total GST Tax:', formatCurrency(finalTaxTotal));
-
-  if (finalDiscount > 0) {
-    printLine('Discount:', `- ${formatCurrency(finalDiscount)}`, false, 'rose');
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  } else {
+    // Popup fallback
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${invoice.invoiceNumber || 'Invoice'}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
-
-  doc.line(rightX + 10, calcY, rightX + rightW - 10, calcY);
-  calcY += 8;
-
-  printLine('Grand Total Due:', formatCurrency(finalGrandTotal), true, primaryR, 9);
-
-  // --- Footer Terms & Signatory ---
-  const footerY = summaryBoxY + 106;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(primaryR, primaryG, primaryB);
-  doc.text('TERMS & CONDITIONS:', 36, footerY + 8);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text('1. Goods once sold will not be accepted back or exchanged.', 36, footerY + 18);
-  doc.text('2. Payment is strictly due within 14 days from invoice issue date.', 36, footerY + 26);
-  doc.text('3. Interest @ 18% per annum will be charged on overdue payments beyond due date.', 36, footerY + 34);
-  doc.text('4. Any legal disputes are subject to Chennai, Tamil Nadu jurisdiction only.', 36, footerY + 42);
-
-  const sigX = 550;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(darkR, darkG, darkB);
-  doc.text(`For ${business.name}`, sigX, footerY + 8, { align: 'right' });
-
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text('[ Digitally Signed & Approved ]', sigX, footerY + 32, { align: 'right' });
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(darkR, darkG, darkB);
-  doc.text('Authorized Signatory', sigX, footerY + 42, { align: 'right' });
-
-  doc.line(36, 785, 559, 785);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(grayR, grayG, grayB);
-  doc.text('This is an authenticated computer-generated GST tax invoice produced via MSME AI Business Assistant. No physical signature required.', 297, 795, { align: 'center' });
-
-  // Download PDF file directly in browser
-  doc.save(`Invoice-${invoice.invoiceNumber}.pdf`);
 };

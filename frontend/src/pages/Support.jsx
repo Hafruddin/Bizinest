@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import * as demoData from '../services/demoData';
 import { useApp } from '../context/AppContext';
 import {
   LifeBuoy,
@@ -32,6 +33,10 @@ const Support = () => {
     queryFn: async () => {
       const res = await api.get('/support/tickets');
       return res.data;
+    },
+    initialData: {
+      status: 'success',
+      data: demoData.tickets,
     }
   });
 

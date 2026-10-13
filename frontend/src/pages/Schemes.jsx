@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '../services/api';
+import * as demoData from '../services/demoData';
 import {
   GraduationCap,
   Sparkles,
@@ -28,6 +29,10 @@ const Schemes = () => {
     queryFn: async () => {
       const res = await api.get('/schemes');
       return res.data;
+    },
+    initialData: {
+      status: 'success',
+      data: demoData.schemes,
     }
   });
 
@@ -241,7 +246,7 @@ const Schemes = () => {
               </div>
 
               <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-850">
-                <span className="text-[10px] text-slate-400">Scheme Code ID: {scheme._id.substring(18)}</span>
+                <span className="text-[10px] text-slate-400">Scheme Code ID: {scheme._id.length > 18 ? scheme._id.substring(18) : scheme._id}</span>
                 <a
                   href={scheme.officialLink}
                   target="_blank"

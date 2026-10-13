@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api, { getActiveToken } from '../services/api';
+import * as demoData from '../services/demoData';
 import {
   MessageSquareCode,
   Send,
@@ -17,11 +18,11 @@ import {
 
 const Chat = () => {
   const queryClient = useQueryClient();
-  const [activeChatId, setActiveChatId] = useState(null);
+  const [activeChatId, setActiveChatId] = useState(demoData.chats[0]?._id || null);
   const [message, setMessage] = useState('');
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [localMessages, setLocalMessages] = useState([]);
+  const [localMessages, setLocalMessages] = useState(demoData.chats[0]?.messages || []);
   const [errorMsg, setErrorMsg] = useState('');
   const messagesEndRef = useRef(null);
 
@@ -31,6 +32,10 @@ const Chat = () => {
     queryFn: async () => {
       const res = await api.get('/ai/chats');
       return res.data;
+    },
+    initialData: {
+      status: 'success',
+      data: demoData.chats,
     }
   });
 
@@ -44,7 +49,11 @@ const Chat = () => {
       const res = await api.get(`/ai/chats/${activeChatId}`);
       return res.data;
     },
-    enabled: !!activeChatId
+    enabled: !!activeChatId,
+    initialData: {
+      status: 'success',
+      data: demoData.chats.find(c => c._id === activeChatId) || demoData.chats[0],
+    }
   });
 
   const activeChat = activeChatRes?.data;
@@ -228,8 +237,24 @@ const Chat = () => {
       queryClient.invalidateQueries(['chats']);
       queryClient.invalidateQueries(['chatMessages', resolvedChatId]);
     } catch (error) {
-      console.error('Streaming response failure:', error);
-      setErrorMsg(error.message || 'Server connection interrupted.');
+      console.warn('Streaming backend unavailable, using simulated business AI agent:', error);
+      const replyContent = demoData.generateChatReply(textToSend);
+      const modelMsg = {
+        _id: 'model_' + Date.now(),
+        role: 'assistant',
+        content: replyContent,
+        timestamp: new Date().toISOString()
+      };
+      setLocalMessages((prev) => [...prev, modelMsg]);
+      // Update in-memory chat
+      const currentChat = demoData.chats.find(c => c._id === resolvedChatId) || demoData.chats[0];
+      if (currentChat) {
+        if (!currentChat.messages) currentChat.messages = [];
+        currentChat.messages.push(userMsg);
+        currentChat.messages.push(modelMsg);
+        currentChat.lastMessage = replyContent.substring(0, 80) + '...';
+        currentChat.updatedAt = new Date().toISOString();
+      }
     } finally {
       setIsStreaming(false);
       setStreamingText('');

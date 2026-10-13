@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import * as demoData from '../services/demoData';
 import { useApp } from '../context/AppContext';
 import {
   Package,
@@ -51,6 +52,11 @@ const Inventory = () => {
         params: { search, category, status }
       });
       return res.data;
+    },
+    initialData: {
+      status: 'success',
+      total: demoData.products.length,
+      data: demoData.products,
     }
   });
 
@@ -61,7 +67,11 @@ const Inventory = () => {
       const res = await api.get('/inventory/insights');
       return res.data;
     },
-    enabled: false // Trigger manually
+    enabled: false, // Trigger manually
+    initialData: {
+      status: 'success',
+      data: demoData.inventoryInsights,
+    }
   });
 
   // Create Product Mutation

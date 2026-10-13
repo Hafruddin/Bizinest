@@ -198,3 +198,125 @@ export const tickets = [
   { _id: 'tkt_3', businessId: DEFAULT_BUSINESS_ID, title: 'PNEU-CYL-009 Specification Datasheet Request', description: 'Customer requesting ISO certification and 3D CAD step file for pneumatic cylinders.', customerName: 'TVS Motor Procurement', customerEmail: 'purchase@tvsmotor.com', status: 'In_Progress', priority: 'Medium', createdAt: '2026-08-18T00:00:00.000Z' },
   { _id: 'tkt_4', businessId: DEFAULT_BUSINESS_ID, title: 'Payment Discrepancy Reconciliation for INV-2026-0703', description: 'Tata Motors procurement logged query regarding 2% TDS deduction on raw material invoice.', customerName: 'Tata Motors Accounts Payable', customerEmail: 'procurement@tatamotors.com', status: 'Open', priority: 'High', createdAt: '2026-08-25T00:00:00.000Z' },
 ];
+
+export const getTransactions = () => {
+  const paidInvoices = invoices.filter(i => i.status === 'Paid');
+  const incomesFormatted = paidInvoices.map((inv) => ({
+    _id: `tx_${inv._id}`,
+    type: 'Income',
+    amount: inv.total,
+    category: 'Sales Invoice',
+    date: inv.issueDate,
+    description: `Sales revenue from ${(inv.customerId?.name || inv.customer?.name || 'Enterprise Client')} (Inv #${inv.invoiceNumber})`,
+  }));
+
+  const expensesFormatted = expenses.map((exp) => ({
+    _id: `tx_${exp._id}`,
+    type: 'Expense',
+    amount: exp.amount,
+    category: exp.category,
+    date: exp.date,
+    description: exp.description,
+  }));
+
+  return [...incomesFormatted, ...expensesFormatted].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
+};
+
+export const dashboardCharts = [
+  { month: 'Jan', Revenue: 180000, Expenses: 95000 },
+  { month: 'Feb', Revenue: 220000, Expenses: 105000 },
+  { month: 'Mar', Revenue: 260000, Expenses: 98000 },
+  { month: 'Apr', Revenue: 210000, Expenses: 110000 },
+  { month: 'May', Revenue: 290000, Expenses: 125000 },
+  { month: 'Jun', Revenue: 342500, Expenses: 112400 },
+];
+
+export const getDashboardStats = () => {
+  const paidInvoices = invoices.filter(i => i.status === 'Paid');
+  const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+  const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  const lowStockCount = products.filter(p => p.quantity <= p.minStockThreshold).length;
+
+  return {
+    totalRevenue,
+    revenueGrowth: 18.5,
+    totalSales: paidInvoices.length,
+    salesGrowth: 14.2,
+    totalExpenses,
+    expensesGrowth: -4.1,
+    totalProducts: products.length,
+    lowStockCount,
+    totalCustomers: customers.length,
+    recentActivities: [
+      { id: 'act-1', type: 'Sale', message: 'Invoice #INV-2026-0805 paid by BHEL Heavy Electricals', amount: '+ ₹1,59,300', time: '10 mins ago' },
+      { id: 'act-2', type: 'Stock', message: 'Low stock alert for "Heavy Duty Steel Roll"', amount: 'Qty: 4', time: '1 hour ago' },
+      { id: 'act-3', type: 'Expense', message: 'Guindy Industrial Unit Monthly Lease Paid', amount: '- ₹45,000', time: '4 hours ago' },
+      { id: 'act-4', type: 'Document', message: 'MSME ZED Gold Certificate 2026 Verified', amount: 'Completed', time: 'Yesterday' },
+    ],
+    aiInsights: [
+      { id: 1, type: 'inventory', text: `Stock levels for ${lowStockCount} key components are below minimum threshold. Automated reorder suggested for "Heavy Duty Steel Roll".` },
+      { id: 2, type: 'finance', text: `Gross sales collections stand at ₹${(totalRevenue / 100000).toFixed(2)} Lakhs across ${paidInvoices.length} paid invoices. Cash profit margin is healthy at +${Math.round(((totalRevenue - totalExpenses) / totalRevenue) * 100)}%.` },
+    ],
+  };
+};
+
+export const inventoryInsights = [
+  { id: 1, title: 'Critical Restock Recommended', message: 'Heavy Duty Steel Roll is down to 4 coils (min threshold 10). JSW Steel supplier lead time is 4 days.', type: 'urgent' },
+  { id: 2, title: 'Excess Capital Buffer', message: 'Commercial Synthetic Resin Adhesive has 45 packs in stock with slow consumption. Reorder frequency can be safely reduced.', type: 'info' },
+  { id: 3, title: 'Upcoming Production Demand', message: 'Projected demand for Double-Acting Pneumatic Cylinder will spike 35% based on upcoming Q3 order pipeline.', type: 'recommendation' },
+];
+
+export const financeInsights = [
+  { id: 1, title: 'Working Capital Health', message: 'Current net profit margin is 54.2%. Current liquid cash easily covers next 60 days of operational expenditures including rent and payroll.', score: 94 },
+  { id: 2, title: 'Overdue Invoice Recovery', message: '2 invoices (#INV-2026-0703, #INV-2026-0704) totaling ₹2,53,700 are past due date. Automated payment reminder sequence recommended.', score: 82 },
+  { id: 3, title: 'Tax Deduction Optimization', message: 'Input Tax Credit (ITC) of ₹84,200 available from raw material purchases to offset outgoing GST liabilities.', score: 90 },
+];
+
+export const chats = [
+  {
+    _id: 'chat_1',
+    title: 'GST Tax Invoicing & HSN Rates',
+    lastMessage: 'Here are the recommended HSN codes for industrial valves and fasteners...',
+    updatedAt: new Date(Date.now() - 3600000).toISOString(),
+    messages: [
+      { _id: 'm1', role: 'user', content: 'What GST rate should apply for industrial valve shipments under HSN 8481?', timestamp: new Date(Date.now() - 7200000).toISOString() },
+      { _id: 'm2', role: 'assistant', content: 'Under HSN code **8481** (Taps, cocks, valves and similar appliances for pipes/boiler shells), the standard GST rate is **18%** (9% CGST + 9% SGST for intra-state, or 18% IGST for inter-state deliveries). Ensure this is clearly cited on all buyer tax invoices with buyer GSTIN.', timestamp: new Date(Date.now() - 7100000).toISOString() },
+    ]
+  },
+  {
+    _id: 'chat_2',
+    title: 'PMEGP Subsidy Application Guidance',
+    lastMessage: 'The PMEGP subsidy provides up to 35% capital subsidy in special categories...',
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+    messages: [
+      { _id: 'm3', role: 'user', content: 'How do I apply for the PMEGP manufacturing grant for plant expansion?', timestamp: new Date(Date.now() - 86400000).toISOString() },
+      { _id: 'm4', role: 'assistant', content: 'To apply under **PMEGP** for manufacturing units:\n1. Prepare a **Detailed Project Report (DPR)** outlining proposed machinery.\n2. Submit an online application via the **KVIC e-Portal** (kviconline.gov.in).\n3. Manufacturing projects qualify for financial outlay up to **Rs. 50 Lakhs** with 15% to 35% margin money subsidy depending on category.', timestamp: new Date(Date.now() - 86300000).toISOString() },
+    ]
+  }
+];
+
+export const generateChatReply = (query) => {
+  const q = (query || '').toLowerCase();
+  if (q.includes('gst') || q.includes('tax') || q.includes('invoice')) {
+    return 'For your enterprise billing under GST:\n- **B2B Invoices** must include both seller and recipient GSTIN, place of supply, and HSN codes.\n- **Tax Rates**: Standard manufacturing components are taxed at 18% (9% CGST + 9% SGST).\n- You currently have **19 filed invoices** with total collections of **₹34.25 Lakhs**. All GST breakdowns are automatically generated in the **Invoice Agent**.';
+  }
+  if (q.includes('stock') || q.includes('inventory') || q.includes('reorder')) {
+    return 'According to your live warehouse telemetry in the **Inventory Agent**:\n- **Low Stock Alert**: "Heavy Duty Steel Roll" has only **4 coils** remaining (below the 10-unit minimum).\n- **Action**: A purchase order for 8 tons with JSW Steel Corp is drafted and ready for review.';
+  }
+  if (q.includes('scheme') || q.includes('subsidy') || q.includes('loan')) {
+    return 'Based on your MSME profile (Manufacturing, ₹3.4Cr turnover):\n- **CGTMSE**: Eligible for up to **₹5 Crore collateral-free credit** with 85% guarantee cover.\n- **ZED Certification**: Eligible for up to **80% subsidy** on Zero Defect Zero Effect certification audit fees.\nCheck the **Scheme Advisor** section for eligibility breakdowns.';
+  }
+  return `Thank you for your inquiry regarding "${query}". The BizNest AI Autonomous Agents are continuously monitoring your operational telemetry across Invoices, Inventory, Cash Flow, and Government Schemes. You can navigate through each dedicated section on the sidebar to inspect real-time metrics and trigger automated workflows.`;
+};
+
+export const adminHealth = {
+  cpuUsage: 12.4,
+  memoryUsage: '142MB of 512MB',
+  dbConnectivity: 'Operational',
+  latency: '28ms',
+  activeBusinesses: 12,
+  activeUsers: 24,
+  apiCount: 1450,
+};
